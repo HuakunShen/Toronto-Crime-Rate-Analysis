@@ -1,0 +1,113 @@
+---
+title: "neighbourhood-crime-rate"
+author: "Huakun Shen"
+date: "05/02/2022"
+output: pdf_document
+---
+
+```{r install and load packages, echo=FALSE}
+# install.packages("opendatatoronto")
+# install.packages("knitr")
+# install.packages("janitor")
+# install.packages("lubridate")
+# install.packages("opendatatoronto")
+# install.packages("tidyverse")
+# install.packages("tidyr")
+# install.packages("dplyr")
+library(knitr)
+library(janitor)
+library(lubridate)
+library(opendatatoronto)
+library(tidyverse)
+library(tidyr)
+library(dplyr)
+```
+
+```{r get package, echo=FALSE}
+package_id <- "fc4d95a6-591f-411f-af17-327e6c5d03c7"
+package <- show_package(package_id)
+package
+# get all resources for this package
+resources <- list_package_resources(package_id)
+ 
+# identify datastore resources; by default, Toronto Open Data sets datastore resource format to CSV for non-geospatial and GeoJSON for geospatial resources
+datastore_resources <- filter(resources, tolower(format) %in% c('csv', 'geojson'))
+ 
+# load the first datastore resource as a sample
+data <- filter(datastore_resources, row_number()==1) %>% get_resource()
+data
+```
+
+
+```{r}
+Filter(function(col_name) {return (grepl("Assault_", col_name, fixed = TRUE))}, colnames(data))
+Filter(function(col_name) {return (grepl("2014", col_name, fixed = TRUE))}, colnames(data))
+Filter(function(col_name) {return (grepl("2015", col_name, fixed = TRUE))}, colnames(data))
+Filter(function(col_name) {return (grepl("2016", col_name, fixed = TRUE))}, colnames(data))
+Filter(function(col_name) {return (grepl("2017", col_name, fixed = TRUE))}, colnames(data))
+Filter(function(col_name) {return (grepl("2018", col_name, fixed = TRUE))}, colnames(data))
+Filter(function(col_name) {return (grepl("2019", col_name, fixed = TRUE))}, colnames(data))
+Filter(function(col_name) {return (grepl("2020", col_name, fixed = TRUE))}, colnames(data))
+
+Filter(function(col_name) {return (grepl("Assault_", col_name, fixed = TRUE))}, colnames(data))
+Filter(function(col_name) {return (grepl("Assault_Rate", col_name, fixed = TRUE))}, colnames(data))
+Filter(function(col_name) {return (grepl("AutoTheft_", col_name, fixed = TRUE))}, colnames(data))
+Filter(function(col_name) {return (grepl("AutoTheft_Rate", col_name, fixed = TRUE))}, colnames(data))
+Filter(function(col_name) {return (grepl("BreakAndEnter_", col_name, fixed = TRUE))}, colnames(data))
+Filter(function(col_name) {return (grepl("BreakAndEnter_Rate", col_name, fixed = TRUE))}, colnames(data))
+Filter(function(col_name) {return (grepl("Robbery_", col_name, fixed = TRUE))}, colnames(data))
+Filter(function(col_name) {return (grepl("Robbery_Rate", col_name, fixed = TRUE))}, colnames(data))
+Filter(function(col_name) {return (grepl("TheftOver_", col_name, fixed = TRUE))}, colnames(data))
+Filter(function(col_name) {return (grepl("TheftOver_Rate", col_name, fixed = TRUE))}, colnames(data))
+Filter(function(col_name) {return (grepl("Homicide_", col_name, fixed = TRUE))}, colnames(data))
+Filter(function(col_name) {return (grepl("Homicide_Rate", col_name, fixed = TRUE))}, colnames(data))
+Filter(function(col_name) {return (grepl("Shootings_", col_name, fixed = TRUE))}, colnames(data))
+Filter(function(col_name) {return (grepl("Shootings_Rate", col_name, fixed = TRUE))}, colnames(data))
+
+
+
+years <- c("2014", "2015", "2016", "2017", "2018", "2019", "2020")
+catgories <- c("Assault_","Assault_Rate","AutoTheft_","AutoTheft_Rate",
+               "BreakAndEnter_","BreakAndEnter_Rate","Robbery_","Robbery_Rate",
+               "TheftOver_","TheftOver_Rate","Homicide_","Homicide_Rate",
+               "Shootings_","Shootings_Rate")
+```
+
+```{r}
+shooting_col_names <- Filter(function(col_name) {return (grepl("Shootings_", col_name, fixed = TRUE))}, colnames(data))
+col_names_2020 <- Filter(function(col_name) {return (grepl("2020", col_name, fixed = TRUE))}, colnames(data))
+intersect(shooting_col_names, col_names_2020)
+```
+```{r}
+data[shooting_col_names]
+```
+
+```{r}
+for (row in 1:nrow(data)) {
+    
+}
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

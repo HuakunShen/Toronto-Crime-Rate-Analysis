@@ -1,0 +1,169 @@
+---
+title: "covid"
+author: "Huakun Shen"
+date: "05/02/2022"
+output: pdf_document
+---
+
+```{r install and load packages, echo=FALSE}
+# install.packages("opendatatoronto")
+# install.packages("knitr")
+# install.packages("janitor")
+# install.packages("lubridate")
+# install.packages("opendatatoronto")
+# install.packages("tidyverse")
+# install.packages("tidyr")
+# install.packages("dplyr")
+library(knitr)
+library(janitor)
+library(lubridate)
+library(opendatatoronto)
+library(tidyverse)
+library(tidyr)
+library(dplyr)
+library(scales)
+library(ggplot2)
+```
+
+```{r}
+	
+# get package
+package_id <- "64b54586-6180-4485-83eb-81e8fae3b8fe"
+package <- show_package(package_id)
+package
+ 
+# get all resources for this package
+resources <- list_package_resources(package_id)
+ 
+# identify datastore resources; by default, Toronto Open Data sets datastore resource format to CSV for non-geospatial and GeoJSON for geospatial resources
+datastore_resources <- filter(resources, tolower(format) %in% c('csv', 'geojson'))
+ 
+# load the first datastore resource as a sample
+data <- filter(datastore_resources, row_number()==1) %>% get_resource()
+data <- data %>% clean_names()
+data
+```
+
+```{r}
+colnames(data)
+
+ggplot(data, aes(x=neighbourhood_name)) + geom_histogram(stat="count")
+
+ggplot(data, aes(x=age_group)) + geom_histogram(stat="count")
+```
+
+```{r}
+sort_by_reported_date <- data[order(data$reported_date),]
+ggplot(sort_by_reported_date, aes(x=reported_date)) + geom_histogram(stat="count")
+```
+
+```{r}
+ggplot(sort_by_reported_date, aes(x=outbreak_associated)) + geom_histogram(stat="count")
+```
+
+
+```{r}
+ggplot(sort_by_reported_date, aes(x=age_group)) + geom_histogram(stat="count") + 
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
+```
+
+
+```{r}
+unique(data$outbreak_associated)
+sort_by_reported_date <- data[order(data$reported_date),]
+
+as.factor(data$age_group)
+```
+
+```{r}
+
+confirmed_count <- sum(data$classification=="CONFIRMED")
+total_count <-nrow(data)
+print("Confirmed Percentage")
+confirmed_count/total_count
+
+ggplot(data, aes(x = as.factor(data$classification))) +  
+  geom_bar(aes(y = (..count..)/sum(..count..))) +
+  scale_y_continuous(labels=percent)
+
+ggplot(sort_by_reported_date, aes(x=as.factor(classification))) + geom_histogram(stat="count") +
+ geom_bar(aes(y = (..count..)/sum(..count..))) +
+  scale_y_continuous(labels=percent)
+
+```
+
+
+```{r}
+neighbourhood_name_count <- data.frame(table(data$neighbourhood_name))
+colnames(neighbourhood_name_count) <- c("neighbourhood_name", "count")
+
+
+
+
+ggplot(dd) +
+  geom_bar(aes(reorder(age, -PCT), PCT, fill=PCT),
+      col="red", alpha = .2, stat="identity") +
+  scale_fill_gradient("Percentage", low = "green", high = "red") +
+  scale_y_continuous(labels = percent_format()) +
+  labs(title="Histogram for Age") +
+  labs(x="Age", y="Percentage")
+
+# data$neighbourhood_name
+```
+
+
+```{r}
+library(forcats)
+
+data.frame(
+  name=c("north","south","south-east","north-west","south-west","north-east","west","east"),
+  val=sample(seq(1,10), 8 )
+)
+
+
+
+# Dataset 1: one value per group
+data <- data.frame(
+  name=c("north","south","south-east","north-west","south-west","north-east","west","east"),
+  val=sample(seq(1,10), 8 )
+)
+
+data %>%
+  mutate(name = fct_reorder(name, val)) %>%
+  ggplot( aes(x=name, y=val)) +
+    geom_bar(stat="identity", fill="#f68060", alpha=.6, width=.4) +
+    coord_flip() +
+    xlab("") +
+    theme_bw()
+
+
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
