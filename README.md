@@ -1,26 +1,20 @@
-# Column Names Summary
+# Toronto Neighbourhood Crime Rate Overview
 
-The `year` variable ranges from 2014 to 2020
+The crime rates in different regions of Toronto ranges largely. The crime rate also has an increasing trend from 2014 to 2019, and a sudden drop in 2020 probably due to covid 19.
 
-_id
-OBJECTID
-Neighbourhood
-Hood_ID
-F2020_Population_Projection
-Assault_${year}
-Assault_Rate${year}
-AutoTheft_${year}
-AutoTheft_Rate${year}
-BreakAndEnter_${year}
-BreakAndEnter_Rate${year}
-Robbery_${year}
-Robbery_Rate${year}
-TheftOver_${year}
-TheftOver_Rate${year}
-Homicide_${year}
-Homicide_Rate${year}
-Shootings_${year}
-Shootings_Rate${year}
-geometry
+## Data
 
+[neighbourhood-crime-rate.rmd](./outputs/paper/neighbourhood-crime-rate.rmd) will download data from online. In case there is no internet connection, a local copy is saved [here](./inputs/data/neighbourhood-crime-rates.geojson).
 
+## Code and Report
+
+[neighbourhood-crime-rate.pdf](./outputs/paper/neighbourhood-crime-rate.pdf) is the paper I wrote to analyze the crime rate in Toronto.
+
+[neighbourhood-crime-rate.rmd](./outputs/paper/neighbourhood-crime-rate.rmd) contains the code to generate a paper. Just open the file with RStudio, and run Knit. Uncomment the library installation code if you don't have the libraries installed.
+
+The [R script](./scripts/neighbourhood-crime-rate.R) can be found in [scripts](./scripts/) folder.
+
+By running [R script](./scripts/neighbourhood-crime-rate.R), the figures used in the [paper](./outputs/paper/neighbourhood-crime-rate.pdf) will be generated
+in folder [outputs/images](./outputs/images/).
+
+To run the [R script](./scripts/neighbourhood-crime-rate.R), Run `Rscript ./scripts/neighbourhood-crime-rate.R` within terminal or Run it in RStudio.

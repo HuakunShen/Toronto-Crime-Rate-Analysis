@@ -1,0 +1,421 @@
+---
+title: "Toronto Neighbourhood Crime Rate Overview"
+author: 
+  - Huakun Shen
+thanks: "Code and data are available at: https://github.com/HuakunShen/Toronto-Crime-Rate-Analysis"
+date: "`r format(Sys.time(), '%d %B %Y')`"
+abstract: "The crime rates in different regions of Toronto ranges largely. The crime rate has an increasing trend from 2014 to 2019, and a sudden drop in 2020 probably due to covid 19."
+output:
+  bookdown::pdf_document2
+toc: FALSE
+bibliography: references.bib
+---
+
+# Introduction
+
+Crime Rate is one of the biggest concerns about peoples live and safety. 
+OpenDataToronto[@OpenDataToronto] contains many public available datasets
+containing data about Toronto. One of the datasets called 
+"Neighbourhood Crime Rates" contains the number of different types of crimes 
+happened in Toronto from 2014 to 2020. The crime rates (out of 100,000)
+of each type of crime are also reported.
+
+In this paper, I did some basic analysis on the topic of Toronto's crime rate
+in recent years using [@citeR]. The crime rate in Toronto has a increasing 
+trend starting 2014, and had a sudden drop in 2020. The sudden drop can probably 
+be explained by Covid 19. The hypothesis will be explained in Section 
+\@ref(discussion).
+
+Some other R packages were also used. 
+[@janitor] was used to clean up data frame column names.
+[@tidyverse], [@tidyr], [@dplyr] were used for data processing.
+[@ggpubr] was used to organize plots
+[@knitr1], [@knitr2], [@knitr3] were used to generate tables.
+[@teetor2011cookbook] was used for R syntax.
+
+Section \@ref(data) explains where the dataset is taken from, what limitations it
+has, and how I pre-processed the dataset. Section \@ref(results) shows the 
+results (tables and plots) used for analysis. Section \@ref(discussion) contains
+my understanding to the dataset, analysis, and explains some findings I derived
+from the data. Furthermore, \@ref(weaknesses-and-next-steps) contains some 
+thoughts about what analysis can be done in the future on this topic.
+
+
+
+```{r setup, include=FALSE}
+# install.packages("opendatatoronto")
+# install.packages("knitr")
+# install.packages("janitor")
+# install.packages("lubridate")
+# install.packages("opendatatoronto")
+# install.packages("tidyverse")
+# install.packages("tidyr")
+# install.packages("dplyr")
+# install.packages("ggpubr")
+library(knitr)
+library(janitor)
+library(opendatatoronto)
+library(tidyverse)
+library(tidyr)
+library(dplyr)
+library(ggpubr)
+```
+
+
+# Data
+
+The dataset was downloaded from OpenDataToronto[@OpenDataToronto], 
+"Neighbourhood Crime Rates" dataset.
+This dataset includes the Crime Data by Neighbourhood, from 2014 to 2020, 
+including 140 neighbourhoods.
+
+No data is 100% accurate and precise. Assuming that there is no human factor 
+affecting data collection, the data collected in this dataset may still
+be inaccurate due to various reasons. For example, if a 
+race or a group of people doesn't like to deal with police, the region where 
+they are a majority might have a lower crime reporting rate, and the crime
+rate if that region won't reflect the actual crime rate well. For example, a 
+region full of gangster may have very high crime rate but lower-than-the-actual
+reporting rate.
+
+The types of crimes include Assault, Auto Theft, Break and Enter, Robbery, 
+Theft Over, Homicide and Shooting & Firearm Discharges. Crime rate per 100,000 
+is also calculated based on the population estimates provided by Environic 
+Analytics.
+
+A limitation of this dataset is its bad design. There is no "year" column, 
+instead, the year is included in column names. For example, Crime type "Robbery"
+has the following related columns
+
+- Robbery_2014
+- Robbery_2015
+- Robbery_2016
+- Robbery_2017
+- Robbery_2018
+- Robbery_2019
+- Robbery_2020
+- Robbery_Rate2014      
+- RobberyRate_2015
+- Robbery_Rate2016
+- Robbery_Rate2017
+- Robbery_Rate2018
+- Robbery_Rate2019
+- Robbery_Rate2020
+
+There are 104 columns in total while there are only 7 crime types. It's very
+hard to do analysis on years with this dataset structure, for example, I can't 
+do a crime rate by year on this.
+
+
+```{r get package, echo = FALSE}
+package_id <- "fc4d95a6-591f-411f-af17-327e6c5d03c7"
+package <- show_package(package_id)
+
+# get all resources for this package
+resources <- list_package_resources(package_id)
+ 
+# identify datastore resources; by default, Toronto Open Data sets datastore resource format to CSV for non-geospatial and GeoJSON for geospatial resources
+datastore_resources <- filter(resources, tolower(format) %in% c('csv', 'geojson'))
+ 
+# load the first datastore resource as a sample
+data <- filter(datastore_resources, row_number()==1) %>% get_resource()
+```
+
+Table \@ref(tab:original-dataset-preview) is a subset preview of the original 
+dataset. It's impossible to show the entire table as there are too many columns.
+
+```{r original-dataset-preview, echo=FALSE}
+cols_to_show <- c("Neighbourhood", "Assault_2014", "Assault_2015")
+kable(head(data[cols_to_show]), "pipe", caption = "Preview of a subset of the original dataset")
+```
+
+```{r echo = FALSE}
+years <- c("2014", "2015", "2016", "2017", "2018", "2019", "2020")
+categories <- c("Assault_","Assault_Rate","AutoTheft_","AutoTheft_Rate",
+               "BreakAndEnter_","BreakAndEnter_Rate","Robbery_","Robbery_Rate",
+               "TheftOver_","TheftOver_Rate","Homicide_","Homicide_Rate",
+               "Shootings_","Shootings_Rate")
+unique_neighbourhood <- unique(data$Neighbourhood)
+unique_hood_id <- unique(data$Hood_ID)
+```
+
+
+```{r echo = FALSE}
+categories <- c("Assault_","Assault_Rate","AutoTheft_","AutoTheft_Rate",
+               "BreakAndEnter_","BreakAndEnter_Rate","Robbery_","Robbery_Rate",
+               "TheftOver_","TheftOver_Rate","Homicide_","Homicide_Rate",
+               "Shootings_","Shootings_Rate")
+column.names <- c("hood_id", "year", "Neighbourhood", "F2020_Population_Projection", categories)
+column.length <- length(column.names)
+row.length <- length(years) * length(unique_hood_id)
+mat <- matrix(ncol = column.length, nrow = 0)
+df <- data.frame(matrix(ncol = column.length, nrow = 0))
+colnames(df) <- column.names
+
+
+for (hood_id in unique_hood_id) {
+  hood_data <- data[data$Hood_ID == hood_id,]
+  for (year in years) {
+    v = c(hood_id, year, hood_data$Neighbourhood, hood_data$F2020_Population_Projection)
+    for (category in categories) {
+      col_name <- paste(category, year, sep="")
+      val <- hood_data[[col_name]]
+      if (is.null(val)) {
+        v <- c(v, 0)
+      } else {
+        v <- c(v, val)
+      }
+    }
+    df[nrow(df) + 1,] = v
+  }
+}
+```
+
+
+```{r Rename Columns, echo = FALSE}
+for (category in categories) {
+  df[[category]] = as.numeric(df[[category]])
+}
+df$F2020_Population_Projection = as.numeric(df$F2020_Population_Projection)
+names(df)[names(df) == 'Assault_'] <- 'Assault'
+names(df)[names(df) == 'AutoTheft_'] <- 'AutoTheft'
+names(df)[names(df) == 'BreakAndEnter_'] <- 'BreakAndEnter'
+names(df)[names(df) == 'Robbery_'] <- 'Robbery'
+names(df)[names(df) == 'TheftOver_'] <- 'TheftOver'
+names(df)[names(df) == 'Homicide_'] <- 'Homicide'
+names(df)[names(df) == 'Shootings_'] <- 'Shootings'
+```
+
+To solve this problem, I pre-processed the data to make it have a "year" column.
+The resulting dataset has the structure in table \@ref(tab:cleaned-data-preview).
+
+
+```{r cleaned-data-preview, echo=FALSE}
+cols_to_show <- c("Neighbourhood", "year", "Shootings_Rate", "Robbery_Rate", "Homicide_Rate")
+knitr::kable(head(df[cols_to_show]), "pipe", caption="Cleaned Table (Subset)")
+```
+
+
+# Results
+
+```{r calculate average crime rate by neighbourhood, echo = FALSE}
+df_gb <- df %>% group_by(Neighbourhood)
+neighbourhood_mean_crime_rate <- df_gb %>% summarise(
+  Assault_Rate=mean(Assault_Rate),
+  AutoTheft_Rate=mean(AutoTheft_Rate),
+  BreakAndEnter_Rate=mean(BreakAndEnter_Rate),
+  Robbery_Rate=mean(Robbery_Rate),
+  TheftOver_Rate=mean(TheftOver_Rate),
+  Homicide_Rate=mean(Homicide_Rate),
+  Shootings_Rate=mean(Shootings_Rate)
+)
+```
+
+## Mean Crime Rate
+
+### Mean Crime Rate By Neighbourhood
+
+The mean crime rate is calculated for every neighbourhood by grouping-by the
+"Neighbourhood" column.
+
+Here is a preview of the resulting dataset.
+
+```{r echo=FALSE}
+cols_to_show <- c("Neighbourhood", "Shootings_Rate", "Robbery_Rate", "Homicide_Rate")
+kable(head(neighbourhood_mean_crime_rate[cols_to_show]), "simple", caption = "Average Crime Rate By Neighbourhood (Subset)")
+```
+
+
+```{r shootings-rate-by-neighbourhood, fig.cap="Shootings Rate By Neighbourhood", fig.width=14,, fig.height=10, echo = FALSE}
+ggplot(neighbourhood_mean_crime_rate,
+       aes(x = reorder(Neighbourhood, -Shootings_Rate), y = Shootings_Rate)) + 
+  geom_bar(stat = "identity") + 
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) + 
+  xlab("Neightbourhood") + ylab("Shootings Rate") +
+  ggtitle("Neighbourhood Shootings Rate (out of 100,000)")
+# ggsave("output_images/neightbourhood-Shootings-Rate.png")
+```
+
+```{r calculate average crime rate by year, echo = FALSE}
+df_gb <- df %>% group_by(year)
+mean_crime_rate_by_year <- df_gb %>% summarise(
+  Assault_Rate=mean(Assault_Rate),
+  AutoTheft_Rate=mean(AutoTheft_Rate),
+  BreakAndEnter_Rate=mean(BreakAndEnter_Rate),
+  Robbery_Rate=mean(Robbery_Rate),
+  TheftOver_Rate=mean(TheftOver_Rate),
+  Homicide_Rate=mean(Homicide_Rate),
+  Shootings_Rate=mean(Shootings_Rate)
+)
+mean_crime_rate_by_year <- mean_crime_rate_by_year[order(mean_crime_rate_by_year$year),]
+```
+
+### Mean Crime Rate By Year
+
+The mean crime rate is calculated for every year by grouping-by the"year" column.
+
+Here is a preview of the resulting dataset.
+
+```{r echo=FALSE}
+cols_to_show <- c("year", "Shootings_Rate", "Robbery_Rate", "Homicide_Rate")
+knitr::kable(head(mean_crime_rate_by_year[cols_to_show]), "pipe", caption="Average crime Rate By Year (Subset)")
+```
+
+```{r Plot Yearly crime Rate, echo = FALSE}
+assault_rate_plt <- ggplot(mean_crime_rate_by_year,
+       aes(x = year, y = Assault_Rate)) + 
+  geom_bar(stat = "identity") +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
+  xlab("Year") + ylab("Assault Rate") +
+  ggtitle("Assault Rate by year (out of 100,000)")
+# ggsave("output_images/assault-rate-by-year.png")
+auththeft_rate_plt <- ggplot(mean_crime_rate_by_year, 
+       aes(x = year, y = AutoTheft_Rate)) + 
+  geom_bar(stat = "identity") +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
+  xlab("Year") + ylab("AutoTheft Rate") +
+  ggtitle("AutoTheft Rate by year (out of 100,000)")
+# ggsave("output_images/autotheft-rate-by-year.png")
+breakAndEnter_plt <- ggplot(mean_crime_rate_by_year, 
+       aes(x = year, y = BreakAndEnter_Rate)) + 
+  geom_bar(stat = "identity") +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
+  xlab("Year") + ylab("BreakAndEnter Rate") +
+  ggtitle("BreakAndEnter Rate by year (out of 100,000)")
+# ggsave("output_images/breakandenter-rate-by-year.png")
+robbery_rate_plot <- ggplot(mean_crime_rate_by_year, 
+       aes(x = year, y = Robbery_Rate)) + 
+  geom_bar(stat = "identity") +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
+  xlab("Year") + ylab("Robbery Rate") +
+  ggtitle("Robbery Rate by year (out of 100,000)")
+# ggsave("output_images/robbery-rate-by-year.png")
+theftOver_rate_plt <- ggplot(mean_crime_rate_by_year, 
+       aes(x = year, y = TheftOver_Rate)) + 
+  geom_bar(stat = "identity") +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
+  xlab("Year") + ylab("TheftOver Rate") +
+  ggtitle("TheftOver Rate by year (out of 100,000)")
+# ggsave("output_images/theftover-rate-by-year.png")
+homicide_rate_plt <- ggplot(mean_crime_rate_by_year, 
+       aes(x = year, y = Homicide_Rate)) + 
+  geom_bar(stat = "identity") +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
+  xlab("Year") + ylab("Homicide Rate") +
+  ggtitle("Homicide Rate by year (out of 100,000)")
+# ggsave("output_images/homicide-rate-by-year.png")
+shootings_rate_plt <- ggplot(mean_crime_rate_by_year, 
+       aes(x = year, y = Shootings_Rate)) + 
+  geom_bar(stat = "identity") +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
+  xlab("Year") + ylab("Shootings Rate") +
+  ggtitle("Shootings Rate by year (out of 100,000)")
+# ggsave("output_images/shootings-rate-by-year.png")
+```
+
+Figure \@ref(fig:crime-rate-by-year) shows the crime rates of different
+types from 2014 to 2020. 
+
+```{r crime-rate-by-year, fig.cap="Crime Rate By Year", fig.width=16, fig.height=16, echo=FALSE}
+ggarrange(assault_rate_plt,
+          auththeft_rate_plt,
+          breakAndEnter_plt,
+          robbery_rate_plot,
+          theftOver_rate_plt,
+          homicide_rate_plt,
+          shootings_rate_plt,
+          labels = c("A", "B", "C", "D", "E", "F", "G"),
+          ncol = 2, nrow = 4)
+```
+
+
+# Discussion
+
+## Crime Rate in different Neighbourhoods
+
+Figure \@ref(fig:shootings-rate-by-neighbourhood) shows the Shootings Rate for 
+different neighbourhoods. The crime rates range greatly across different regions.
+The region with the highest crime rate has approximately 65 shootings per 100,000
+people. The region with the least shootings has close to 0 shooting.
+
+If a person were pick a residence, it's better for them to pick a region with 
+lower crime rate, especially shootings rate.
+
+## Mean Crime Rate By Year
+
+Figure \@ref(fig:crime-rate-by-year) shows the crime rate of different types by
+year.
+We can observe that, all crime types except for robbery has an increasing rate. 
+Meaning that The overall crime rate has been increasing in Toronto in recent years.
+
+An interesting observation is that all crime types except for Robbery and 
+Auto Theft have a increasing trend if crime rate but a sudden drop in 2020. 
+Given that the data is correct, the sudden drop is a surprise.
+
+Covid 19 is undoubtedly one of the most unexpected variable in year 2020, and it
+can be used to explain the sudden drop of crime rates in 2020.
+
+The sudden drop of crime rate of Assault, Break-and-Enter, Theft Over, Homicide, 
+Shootings can be explained by the stay-at-home order caused by the pandemic.
+
+Although many people ignored the order, the population going out is still 
+reduced by work-from-home, prohibition to dine-in. As people tend to stay home 
+for longer time, crimes like assualt, theft over, break-and-enter, homicide and 
+shootings which usually happen outside of home tend to occur less frequently.
+
+The exception is Auto Theft crime, the only crime rate increased in 2020. 
+It can also be explained by the same reason. As people stay home for longer,
+their vehicles are also left alone for longer, giving the thefts more chances to
+steal a vehicle.
+
+Robbery is the only crime that has a constant dropping rate. 2020 has a 
+exceptionally large drop compared to previous years, which could be explained 
+by the same reason.
+
+
+
+## Weaknesses and next steps
+
+### Neighbourhood Safety
+
+I only generated the shootings rate histogram for neighbourhoods (which is the 
+most critical type of crime). To better understand the safety in different 
+neighbourhoods, I will need to generate a histogram for each crime type.
+As there are 140 neighbourhoods, plotting a histogram isn't intuitive enough to
+visualize the crime rate in different regions. The next step could be plotting a
+heat map, which is a more intuitive visualization. 
+
+It's also interesting that the crime rate ranges largely in different regions.
+The next step could be finding out what are the causes of the high crime rate in
+some regions. For example, housing price, rental price, race of residents, 
+education level of residents, population density, income level of residents, etc.
+The dataset used in this paper is not enough, more data will be required to do
+such analysis.
+
+### Cause of Crime Rate Drop In 2020
+
+Based on data in the dataset used in this paper, it's not rigorous enough to 
+conclude that Covid 19 reduces crime rate. The crime rates were reported annually,
+it should be more accurate if we can use monthly reported crime data and covid 
+counts. 
+
+
+
+
+\newpage
+
+# References
+
+
+
+
+
+
+
+
+
+
+
+
+
+

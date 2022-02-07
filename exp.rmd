@@ -1,7 +1,0 @@
----
-title: "exp"
-author: "Huakun Shen"
-date: "05/02/2022"
-output: pdf_document
----
-
